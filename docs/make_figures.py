@@ -30,11 +30,11 @@ from minijev.text import Vocab  # noqa: E402
 # --- palette ---------------------------------------------------------------
 BG = "#0a0e17"
 PANEL = "#101725"
-STROKE = "#22304a"
+STROKE = "#2a3b58"
 GRID = "#151d2c"
-TXT = "#e6edf7"
-DIM = "#8b9cb3"
-FAINT = "#5d6c82"
+TXT = "#eef4fc"
+DIM = "#a3b4cb"
+FAINT = "#7b8ca4"
 CYAN = "#22d3ee"      # computation
 GREEN = "#4ade80"     # state / input
 AMBER = "#fbbf24"     # questions
@@ -55,6 +55,10 @@ class SVG:
         self.h = height
         self.body: list[str] = []
         self.markers: set[str] = set()
+        self.clips: set[tuple[float, float, float, float]] = set()
+        # every figure gets the same corner brackets and CRT lines unless it
+        # draws its own
+        self.framed = True
 
     # -- primitives ------------------------------------------------------
     @staticmethod
@@ -118,16 +122,88 @@ class SVG:
         return w
 
     # -- document --------------------------------------------------------
+    def raw(self, markup: str) -> None:
+        """Escape hatch for effects the helper methods do not cover."""
+
+        self.body.append(markup)
+
+    def scanlines(self, x, y, w, h, opacity=0.10) -> None:
+        """Horizontal CRT lines over a region."""
+
+        self.raw(
+            f'<rect x="{x:.1f}" y="{y:.1f}" width="{w:.1f}" height="{h:.1f}"'
+            f' fill="url(#scan)" opacity="{opacity}"/>'
+        )
+
+    def hud(self, x, y, w, h, color=CYAN, size=22, sw=2.2) -> None:
+        """Four corner brackets, the standard sci-fi frame."""
+
+        for cx, sx in ((x, 1), (x + w, -1)):
+            for cy, sy in ((y, 1), (y + h, -1)):
+                self.raw(
+                    f'<path d="M {cx:.1f} {cy + sy * size:.1f} '
+                    f'L {cx:.1f} {cy:.1f} L {cx + sx * size:.1f} {cy:.1f}"'
+                    f' fill="none" stroke="{color}" stroke-width="{sw}"/>'
+                )
+
+    def glow_text(self, x, y, s, size=14, fill=TXT, weight="400",
+                  anchor="start", halo=0.45, dx=0.0, tracking=None) -> None:
+        """Text with a soft halo behind it. Cheap glow without filters."""
+
+        for off, op in ((2.0, 0.16), (1.0, 0.22)):
+            self.text(x + dx + off, y + off, s, size=size, fill=fill,
+                      anchor=anchor, weight=weight, opacity=op)
+        self.text(x + dx, y, s, size=size, fill=fill, anchor=anchor,
+                  weight=weight, tracking=tracking)
+
+    def glitch(self, x, y, s, size=34, fill=TXT, weight="700") -> None:
+        """Chromatic-aberration title: cyan and magenta copies behind the text."""
+
+        self.text(x - 2.5, y, s, size=size, fill=CYAN, weight=weight, opacity=0.75)
+        self.text(x + 2.5, y, s, size=size, fill=MAGENTA, weight=weight, opacity=0.75)
+        self.text(x, y, s, size=size, fill=fill, weight=weight)
+
+    def cursor(self, x, y, w=11, h=18, color=GREEN, dur="1.1s") -> None:
+        """A block cursor that blinks."""
+
+        self.raw(
+            f'<rect x="{x:.1f}" y="{y - h + 4:.1f}" width="{w}" height="{h}"'
+            f' fill="{color}" opacity="0.9">'
+            f'<animate attributeName="opacity" values="0.9;0.9;0;0;0.9"'
+            f' dur="{dur}" repeatCount="indefinite"/></rect>'
+        )
+
+    def sweep(self, x, y, w, h, color=CYAN, dur="7s", band=54) -> None:
+        """A slow scan band travelling down the region."""
+
+        self.clips.add((x, y, w, h))
+        self.raw(
+            f'<g clip-path="url(#clip-{int(x)}-{int(y)})">'
+            f'<rect x="{x:.1f}" y="{y - band:.1f}" width="{w:.1f}"'
+            f' height="{band}" fill="{color}" opacity="0.055">'
+            f'<animateTransform attributeName="transform" type="translate"'
+            f' from="0 0" to="0 {h + band:.1f}" dur="{dur}"'
+            f' repeatCount="indefinite"/></rect></g>'
+        )
+
     def render(self) -> str:
         defs = [
             '<pattern id="grid" width="26" height="26" patternUnits="userSpaceOnUse">'
             f'<path d="M 26 0 L 0 0 0 26" fill="none" stroke="{GRID}"'
             ' stroke-width="1"/></pattern>',
+            '<pattern id="scan" width="4" height="4" patternUnits="userSpaceOnUse">'
+            f'<rect width="4" height="1" fill="{TXT}" opacity="0.55"/></pattern>',
             '<filter id="glow" x="-30%" y="-30%" width="160%" height="160%">'
             '<feGaussianBlur stdDeviation="4" result="b"/>'
             '<feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/>'
             '</feMerge></filter>',
         ]
+        for clip in self.clips:
+            x, y, w, h = clip
+            defs.append(
+                f'<clipPath id="clip-{int(x)}-{int(y)}">'
+                f'<rect x="{x}" y="{y}" width="{w}" height="{h}"/></clipPath>'
+            )
         for color in sorted(self.markers):
             defs.append(
                 f'<marker id="ar-{color.lstrip("#")}" viewBox="0 0 10 10"'
@@ -146,6 +222,10 @@ class SVG:
         return head + "".join(self.body) + "</svg>\n"
 
     def save(self, name: str) -> pathlib.Path:
+        if self.framed:
+            self.hud(10, 10, self.w - 20, self.h - 20, color=STROKE, size=18,
+                     sw=1.6)
+            self.scanlines(0, 0, self.w, self.h, opacity=0.03)
         OUT.mkdir(parents=True, exist_ok=True)
         path = OUT / name
         path.write_text(self.render(), encoding="utf-8")
@@ -186,29 +266,112 @@ D = F["dim"]
 V = F["vocab"]
 
 
-# --- 1. banner -------------------------------------------------------------
-def fig_banner() -> pathlib.Path:
-    svg = SVG(1040, 210)
-    svg.rect(0, 0, 1040, 3, fill=CYAN, rx=0)
-    svg.text(40, 92, "mini-jev", size=56, fill=TXT, weight="700",
-             tracking="0.02em")
-    svg.text(40, 92, "mini-jev", size=56, fill=CYAN, weight="700", opacity=0.35)
-    svg.text(41, 92, "mini-jev", size=56, fill=TXT, weight="700")
-    svg.text(42, 122, "a System One decision model small enough to read in one sitting",
+# --- 1. hero ---------------------------------------------------------------
+W, H = 1200, 700
+HORIZON = 500
+
+
+def _floor(svg: SVG) -> None:
+    """A synthwave floor: converging verticals plus accelerating horizontals."""
+
+    vp_x = W / 2
+    for bx in range(-400, 1601, 100):
+        svg.line(vp_x, HORIZON, bx, H, stroke=VIOLET, sw=1, dash=None)
+    for dy in (6, 16, 32, 56, 92, 140, 200):
+        svg.line(0, HORIZON + dy, W, HORIZON + dy, stroke=CYAN, sw=1)
+
+
+def _rain(svg: SVG) -> None:
+    """Faint binary columns, deterministic so regenerating is reproducible."""
+
+    rng = np.random.default_rng(7)
+    for _ in range(26):
+        x = float(rng.uniform(20, W - 60))
+        y = float(rng.uniform(22, 54))
+        bits = "".join(str(b) for b in rng.integers(0, 2, size=int(rng.integers(6, 12))))
+        svg.text(x, y, bits, size=11.5, fill=FAINT, opacity=0.30)
+
+
+def _terminal_lines(svg: SVG, x: float, y: float, size: float = 14.5,
+                    lh: float = 22) -> None:
+    """Lay out a terminal transcript, segment by segment, in real colours."""
+
+    cw = size * 0.6005
+    rows = [
+        [("$ python -m minijev train", GREEN)],
+        [("parameters", CYAN), ("        9265", TXT), ("   (numpy only)", FAINT)],
+        [("department", CYAN), ("   choice  acc 0.736  ece 0.014  brier 0.369", DIM)],
+        [("is_urgent", CYAN), ("    noul    acc 0.876  ece 0.013  brier 0.098", DIM)],
+        [("severity", CYAN), ("     score   acc 0.767  ece 0.015  brier 0.321", DIM)],
+        [],
+        [("$ python -m minijev demo --model runs/triage", GREEN)],
+        [("my card was charged twice, please refund asap", DIM),
+         ("  billing", MAGENTA), ("    0.17  0.745  0.775", AMBER)],
+        [("the integration keeps returning a timeout ...", DIM),
+         ("  technical", MAGENTA), ("  0.83  0.420  1.418", AMBER)],
+        [("could i get a pricing quote before we upgrade", DIM),
+         ("  sales", MAGENTA), ("      0.82  0.549  0.457", AMBER)],
+        [],
+        [("$ python -m pytest -q", GREEN), ("    74 passed in 16.40s", DIM)],
+    ]
+    for i, row in enumerate(rows):
+        cx = x
+        for text, color in row:
+            svg.text(cx, y + i * lh, text, size=size, fill=color)
+            cx += len(text) * cw
+    last = y + (len(rows) - 1) * lh
+    svg.cursor(cx + 6, last, w=10, h=size + 2, color=GREEN)
+
+
+def fig_hero() -> pathlib.Path:
+    svg = SVG(W, H)
+    svg.framed = False  # the hero draws a stronger frame of its own
+    svg.rect(0, 0, W, 4, fill=CYAN, rx=0)
+    svg.rect(0, H - 4, W, 4, fill=MAGENTA, rx=0)
+
+    # faint starfield, drawn before anything that should cover it
+    rng = np.random.default_rng(3)
+    for _ in range(70):
+        sx, sy = float(rng.uniform(0, W)), float(rng.uniform(12, HORIZON - 20))
+        svg.raw(f'<circle cx="{sx:.0f}" cy="{sy:.0f}" r="1.1" fill="{TXT}"'
+                f' opacity="{rng.uniform(0.15, 0.45):.2f}"/>')
+    _rain(svg)
+
+    # title block
+    svg.glitch(130, 100, "mini-jev", size=58)
+    svg.text(132, 130, "a System One decision model small enough to read in one sitting",
              size=15, fill=DIM)
-    y = 160
-    x = 40
-    for label, color in (
-        (f"{F['params']:,} params", CYAN),
-        (f"{V}-dim bag of words", GREEN),
-        (f"{F['rows']}-token state", GREEN),
-        ("1 matmul per question", AMBER),
-        ("0 autoregressive steps", VIOLET),
-        ("ECE 0.014", MAGENTA),
-    ):
-        x += svg.chip(x, y, label, color) + 10
-    svg.rect(0, 207, 1040, 3, fill=VIOLET, rx=0)
-    return svg.save("banner.svg")
+    svg.text(W - 130, 92, "// TYPED DECISIONS", size=13, fill=CYAN, anchor="end",
+             tracking="0.16em")
+    svg.text(W - 130, 114, "// CALIBRATED PROBABILITIES", size=13, fill=VIOLET,
+             anchor="end", tracking="0.16em")
+    svg.text(W - 130, 136, "// NO AUTOREGRESSION", size=13, fill=MAGENTA,
+             anchor="end", tracking="0.16em")
+
+    # terminal
+    tx, ty, tw, th = 130, 160, 940, 340
+    svg.rect(tx + 6, ty + 8, tw, th, fill="#000000", opacity=0.55, rx=10)
+    svg.rect(tx, ty, tw, th, fill="#070b13", stroke=CYAN, sw=1.6, rx=10)
+    svg.rect(tx, ty, tw, 30, fill="#0d1420", stroke=CYAN, sw=1.6, rx=10)
+    svg.rect(tx, ty + 20, tw, 10, fill="#0d1420")
+    for i, dot in enumerate(("#ff5f57", "#febc2e", "#28c840")):
+        svg.raw(f'<circle cx="{tx + 20 + i * 18}" cy="{ty + 15}" r="5.5"'
+                f' fill="{dot}" opacity="0.9"/>')
+    svg.text(tx + tw / 2, ty + 20, "mini-jev  ::  system-one runtime",
+             size=12.5, fill=DIM, anchor="middle")
+    _terminal_lines(svg, tx + 26, ty + 62)
+    svg.scanlines(tx, ty, tw, th, opacity=0.055)
+    svg.sweep(tx, ty, tw, th, color=CYAN, dur="7.5s", band=70)
+
+    # horizon and floor
+    svg.rect(0, HORIZON - 3, W, 6, fill=CYAN, opacity=0.30, rx=0)
+    svg.rect(0, HORIZON - 1, W, 2, fill=CYAN, opacity=0.75, rx=0)
+    _floor(svg)
+    svg.rect(0, HORIZON, W, 200, fill=BG, opacity=0.35)
+
+    svg.hud(14, 14, W - 28, H - 28, color=CYAN, size=26)
+    svg.scanlines(0, 0, W, H, opacity=0.035)
+    return svg.save("hero.svg")
 
 
 # --- 2. the contract -------------------------------------------------------
@@ -545,7 +708,7 @@ def fig_temperature(rows) -> pathlib.Path:
 
 def main() -> None:
     print(f"live facts: dim={D} vocab={V} params={F['params']:,}")
-    written = [fig_banner(), fig_contract(), fig_pipeline(), fig_heads(),
+    written = [fig_hero(), fig_contract(), fig_pipeline(), fig_heads(),
                fig_modules()]
 
     print("training the default model for the reliability figure...")

@@ -1,10 +1,27 @@
 <div align="center">
 
-<img src="docs/figures/banner.svg" alt="mini-jev: a System One decision model small enough to read in one sitting" width="100%">
+<img src="docs/figures/hero.svg" alt="mini-jev: a System One decision model small enough to read in one sitting" width="100%">
 
 <br>
 
-`9,265 parameters` &nbsp;&middot;&nbsp; `numpy only` &nbsp;&middot;&nbsp; `trains in seconds` &nbsp;&middot;&nbsp; `0 autoregressive steps`
+<a href="https://github.com/AceIke/mini-Jev/actions/workflows/ci.yml"><img alt="ci" src="https://github.com/AceIke/mini-Jev/actions/workflows/ci.yml/badge.svg"></a>
+<img alt="python" src="https://img.shields.io/badge/python-3.10%2B-22d3ee?style=flat-square&labelColor=0a0e17">
+<img alt="dependencies" src="https://img.shields.io/badge/dependencies-numpy%20only-4ade80?style=flat-square&labelColor=0a0e17">
+<img alt="parameters" src="https://img.shields.io/badge/parameters-9%2C265-a78bfa?style=flat-square&labelColor=0a0e17">
+<a href="#tests"><img alt="tests" src="https://img.shields.io/badge/tests-74%20passing-f472b6?style=flat-square&labelColor=0a0e17"></a>
+<a href="#results"><img alt="department ECE" src="https://img.shields.io/badge/department%20ECE-0.014-fbbf24?style=flat-square&labelColor=0a0e17"></a>
+<img alt="license" src="https://img.shields.io/badge/license-MIT-9fb0c7?style=flat-square&labelColor=0a0e17">
+
+<br><br>
+
+<a href="docs/JEV.md">knowledge base</a> &nbsp;&middot;&nbsp;
+<a href="docs/DESIGN.md">design notes</a> &nbsp;&middot;&nbsp;
+<a href="#quickstart">quickstart</a> &nbsp;&middot;&nbsp;
+<a href="#results">results</a> &nbsp;&middot;&nbsp;
+<a href="#calibration-ablations">ablations</a> &nbsp;&middot;&nbsp;
+<a href="#temperature-scaling">temperature</a> &nbsp;&middot;&nbsp;
+<a href="docs/figures">figures</a> &nbsp;&middot;&nbsp;
+<a href="https://docs.typesafe.ai">jev docs</a>
 
 </div>
 
