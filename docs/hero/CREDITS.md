@@ -23,9 +23,26 @@ The same scene also exists as pure vector artwork with no photographic input, at
 requirement at all and is the version to prefer if you fork this repository and
 want to avoid third-party content entirely.
 
-Rebuild the composite with:
+Rebuild the composites with:
 
 ```bash
-python docs/build_hero.py      # needs Chrome or Edge, and Pillow
-python docs/make_figures.py    # rebuilds the pure-vector figures
+python docs/build_hero.py       # needs Chrome or Edge, and Pillow; ~2 minutes
+python docs/make_figures.py     # rebuilds the pure-vector figures
 ```
+
+## The four hero files
+
+`build_hero.py` writes all of these from the same phase-parameterised scene, so
+they cannot drift apart:
+
+| file | what it is | used by |
+| --- | --- | --- |
+| `docs/figures/hero.webp` | 24 frames at 12 fps, 1400x788, about 2 MB | the README |
+| `docs/figures/hero.gif` | the same loop at 900x507, 12 frames, about 3 MB | a fallback for anything that will not animate WebP |
+| `docs/figures/hero.jpg` | one frame, for a static preview or a social card | not referenced by the README |
+| `docs/figures/hero.svg` | pure vector, no photographs | the attribution-free alternative |
+
+The motion is not CSS or SMIL running in the browser. Every frame is rendered
+from a phase in `[0, 1)` that drives the falling rain, the drifting traffic below
+and the breathing phone glow, which is what makes the loop exact and the output
+reproducible frame for frame.
