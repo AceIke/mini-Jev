@@ -11,7 +11,7 @@
 ---
 
 `mini-jev` is a small, from-scratch implementation of the typed decision
-interface that TypeSafe AI's **Jev** exposes. You send a *state* and a set of
+interface that TypeSafe AI's Jev exposes. You send a *state* and a set of
 typed *questions*. You get back a probability distribution over the options
 plus a confidence value that ordinary code can branch on.
 
@@ -23,7 +23,7 @@ It is not a Jev clone, and it is not affiliated with TypeSafe AI. It is a small
 model that speaks the same protocol, built around a task whose correct answer is
 computable, so that claims about calibration can be checked instead of asserted.
 
-**New to the concepts?** [`docs/JEV.md`](docs/JEV.md) is the knowledge base: the
+New to the concepts? [`docs/JEV.md`](docs/JEV.md) is the knowledge base: the
 three primitives, state, the evaluation model, confidence, calibration, the
 known failure modes, and a table mapping every idea onto the file that carries it
 here.

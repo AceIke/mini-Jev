@@ -184,7 +184,7 @@ boolean primitive" rather than as an acronym.
 | true or false | `Noul` |
 
 One trap worth naming, because it is documented and easy to fall into: a `Choice`
-with two options `yes`/`no` is **not** the same as a `Noul`. The Choice is
+with two options `yes`/`no` is not the same as a `Noul`. The Choice is
 relative, so it answers "which of these two fits better" and its probabilities
 are forced to sum to one. The Noul is absolute, so it can be low for both.
 Designs that assume the two agree will eventually see them disagree.
@@ -206,9 +206,9 @@ panel of experts before asking for a judgment.
 
 Two constraints are easy to forget:
 
-* **Text only.** Images, audio and video are not accepted. If you have them,
-  convert to text or to named fields first.
-* **State and questions compete for the same budget.** The request budget covers
+* Text only. Images, audio and video are not accepted. If you have them, convert
+  to text or to named fields first.
+* State and questions compete for the same budget. The request budget covers
   the state plus all questions together, and there is a tighter sub-budget for
   the state plus the single longest question.
 
@@ -219,17 +219,17 @@ This is the part that most changes how you write code against it.
 The state is read once. Every question is then evaluated in parallel and in
 isolation. Three consequences follow, and they are all load-bearing.
 
-**Adding questions is cheap in time and cheap in money.** Every question costs
+Adding questions is cheap in time and cheap in money. Every question costs
 its own tokens, but they are input tokens and they are processed together.
 TypeSafe's own cookbook measures batching 13 questions into one call as roughly
 an order of magnitude faster and cheaper than 13 separate calls, with no change
 in the answers.
 
-**Questions cannot contaminate each other.** Because each is evaluated against
+Questions cannot contaminate each other. Because each is evaluated against
 the same input in isolation, one question's answer never becomes another's
 context. There is no context rot between questions.
 
-**Asking a question you might not need is close to free.** This gives rise to the
+Asking a question you might not need is close to free. This gives rise to the
 speculative fan-out pattern: ask every question the code could conceivably want,
 including ones that only matter for some inputs, then let the code decide which
 answers to use. If a ticket turns out not to be a bug report, ignore the severity
@@ -287,16 +287,16 @@ Calibration is the property that makes the probabilities worth reading.
 Three things about that definition are worth stating plainly, because they are
 where most misunderstandings live.
 
-**It is a statement about groups, not about single answers.** A well-calibrated
+It is a statement about groups, not about single answers. A well-calibrated
 model can still be wrong on the specific case in front of you. Calibration tells
 you how much to trust the numbers in aggregate.
 
-**It is measurable and therefore falsifiable.** You bin predictions by stated
+It is measurable and therefore falsifiable. You bin predictions by stated
 probability, compare mean confidence against observed frequency, and report the
 gap (expected calibration error). That is what `calibration.py` does, and what
 `docs/DESIGN.md` uses to hold this repository to its claims.
 
-**It is a per-question property.** One question can be well calibrated while
+It is a per-question property. One question can be well calibrated while
 another is not, and a distribution shift can wreck one while leaving the others
 untouched. Reporting a single global number hides exactly the failure you need
 to see.
@@ -312,7 +312,7 @@ Three post-training approaches are contrasted in the docs:
 | RLCD | calibrated decisions | decisions plus probabilities that mean something |
 
 Jev uses RLCD, reinforcement learning for calibrated decisions. The stated
-failure mode it avoids is **mode dropping**: preference optimisation narrows the
+failure mode it avoids is mode dropping: preference optimisation narrows the
 output distribution towards whichever style scored well, which is the opposite of
 what you want when the task is to report honest uncertainty across several
 plausible answers.
@@ -322,19 +322,19 @@ plausible answers.
 The guidance is consistent across the docs, and it is mostly about
 decomposition.
 
-**Ask atomic questions.** Each question should be the kind of judgment a
+Ask atomic questions. Each question should be the kind of judgment a
 knowledgeable person could make in a few seconds. If a question needs extended
 reasoning or weighs several independent factors, split it.
 
-**Recombine in code.** Ask about market size, technical feasibility and
+Recombine in code. Ask about market size, technical feasibility and
 differentiation separately, then combine the three with weights you control. When
 priorities change you edit a coefficient instead of rewriting a prompt.
 
-**Keep deterministic work out of the model.** Arithmetic, date handling,
+Keep deterministic work out of the model. Arithmetic, date handling,
 counting, and set membership belong in code. The model's job is the part that is
 genuinely a judgment.
 
-**Put your domain rules in the criteria.** Since there is no fine-tuning per
+Put your domain rules in the criteria. Since there is no fine-tuning per
 customer, the request is the only place to encode your rules. Boundary cases
 belong in the option descriptions, where they affect the answer.
 
