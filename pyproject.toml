@@ -1,0 +1,39 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "mini-jev"
+version = "0.2.0"
+description = "A small, from-scratch System One decision model: typed questions in, calibrated probabilities out."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "mini-jev contributors" }]
+keywords = ["system-one", "calibration", "temperature-scaling", "decision-model", "typed-decisions"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Intended Audience :: Developers",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+dependencies = ["numpy>=1.24"]
+
+[project.optional-dependencies]
+dev = ["pytest>=7"]
+
+[project.scripts]
+minijev = "minijev.cli:main"
+
+[project.urls]
+Homepage = "https://github.com/AceIke/mini-jev"
+Source = "https://github.com/AceIke/mini-jev"
+Issues = "https://github.com/AceIke/mini-jev/issues"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
+testpaths = ["tests"]
+addopts = "-q"

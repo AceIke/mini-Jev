@@ -1,0 +1,17 @@
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.coverage
+htmlcov/
+
+# training artifacts
+runs/
+*.npz
+report.md
+
+# editors / OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

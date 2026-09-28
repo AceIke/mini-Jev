@@ -1,0 +1,11 @@
+# Keep the repository in LF so the Linux and Windows CI legs agree.
+* text=auto eol=lf
+
+# Windows-specific scripts keep CRLF.
+*.bat text eol=crlf
+*.ps1 text eol=crlf
+
+# Binary artefacts are never line-ending converted.
+*.npz binary
+*.png binary
+*.jpg binary
