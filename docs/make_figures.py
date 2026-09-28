@@ -56,6 +56,7 @@ class SVG:
         self.body: list[str] = []
         self.markers: set[str] = set()
         self.clips: set[tuple[float, float, float, float]] = set()
+        self.extra_defs: list[str] = []
         # every figure gets the same corner brackets and CRT lines unless it
         # draws its own
         self.framed = True
@@ -126,6 +127,11 @@ class SVG:
         """Escape hatch for effects the helper methods do not cover."""
 
         self.body.append(markup)
+
+    def defs(self, markup: str) -> None:
+        """Register gradients, filters and clip paths for this figure."""
+
+        self.extra_defs.append(markup)
 
     def scanlines(self, x, y, w, h, opacity=0.10) -> None:
         """Horizontal CRT lines over a region."""
@@ -204,6 +210,7 @@ class SVG:
                 f'<clipPath id="clip-{int(x)}-{int(y)}">'
                 f'<rect x="{x}" y="{y}" width="{w}" height="{h}"/></clipPath>'
             )
+        defs.extend(self.extra_defs)
         for color in sorted(self.markers):
             defs.append(
                 f'<marker id="ar-{color.lstrip("#")}" viewBox="0 0 10 10"'
@@ -266,30 +273,9 @@ D = F["dim"]
 V = F["vocab"]
 
 
-# --- 1. hero ---------------------------------------------------------------
-W, H = 1200, 700
-HORIZON = 500
-
-
-def _floor(svg: SVG) -> None:
-    """A synthwave floor: converging verticals plus accelerating horizontals."""
-
-    vp_x = W / 2
-    for bx in range(-400, 1601, 100):
-        svg.line(vp_x, HORIZON, bx, H, stroke=VIOLET, sw=1, dash=None)
-    for dy in (6, 16, 32, 56, 92, 140, 200):
-        svg.line(0, HORIZON + dy, W, HORIZON + dy, stroke=CYAN, sw=1)
-
-
-def _rain(svg: SVG) -> None:
-    """Faint binary columns, deterministic so regenerating is reproducible."""
-
-    rng = np.random.default_rng(7)
-    for _ in range(26):
-        x = float(rng.uniform(20, W - 60))
-        y = float(rng.uniform(22, 54))
-        bits = "".join(str(b) for b in rng.integers(0, 2, size=int(rng.integers(6, 12))))
-        svg.text(x, y, bits, size=11.5, fill=FAINT, opacity=0.30)
+# --- 1. the terminal, and the scene ----------------------------------------
+TW, TH = 1040, 440      # terminal figure
+SW, SH = 1600, 900      # hero
 
 
 def _terminal_lines(svg: SVG, x: float, y: float, size: float = 14.5,
@@ -323,54 +309,246 @@ def _terminal_lines(svg: SVG, x: float, y: float, size: float = 14.5,
     svg.cursor(cx + 6, last, w=10, h=size + 2, color=GREEN)
 
 
-def fig_hero() -> pathlib.Path:
-    svg = SVG(W, H)
-    svg.framed = False  # the hero draws a stronger frame of its own
-    svg.rect(0, 0, W, 4, fill=CYAN, rx=0)
-    svg.rect(0, H - 4, W, 4, fill=MAGENTA, rx=0)
+def fig_terminal() -> pathlib.Path:
+    svg = SVG(TW, TH)
+    svg.text(40, 40, "// RUNTIME", size=13, fill=DIM, weight="700",
+             tracking="0.14em")
+    svg.text(40, 68, "what a request actually comes back with", size=19, fill=TXT)
 
-    # faint starfield, drawn before anything that should cover it
-    rng = np.random.default_rng(3)
-    for _ in range(70):
-        sx, sy = float(rng.uniform(0, W)), float(rng.uniform(12, HORIZON - 20))
-        svg.raw(f'<circle cx="{sx:.0f}" cy="{sy:.0f}" r="1.1" fill="{TXT}"'
-                f' opacity="{rng.uniform(0.15, 0.45):.2f}"/>')
-    _rain(svg)
-
-    # title block
-    svg.glitch(130, 100, "mini-jev", size=58)
-    svg.text(132, 130, "a System One decision model small enough to read in one sitting",
-             size=15, fill=DIM)
-    svg.text(W - 130, 92, "// TYPED DECISIONS", size=13, fill=CYAN, anchor="end",
-             tracking="0.16em")
-    svg.text(W - 130, 114, "// CALIBRATED PROBABILITIES", size=13, fill=VIOLET,
-             anchor="end", tracking="0.16em")
-    svg.text(W - 130, 136, "// NO AUTOREGRESSION", size=13, fill=MAGENTA,
-             anchor="end", tracking="0.16em")
-
-    # terminal
-    tx, ty, tw, th = 130, 160, 940, 340
-    svg.rect(tx + 6, ty + 8, tw, th, fill="#000000", opacity=0.55, rx=10)
-    svg.rect(tx, ty, tw, th, fill="#070b13", stroke=CYAN, sw=1.6, rx=10)
-    svg.rect(tx, ty, tw, 30, fill="#0d1420", stroke=CYAN, sw=1.6, rx=10)
+    tx, ty, tw, th = 40, 96, 960, 300
+    svg.rect(tx + 6, ty + 8, tw, th, fill="#000000", opacity=0.5, rx=10)
+    svg.rect(tx, ty, tw, th, fill="#070b13", stroke=CYAN, sw=1.5, rx=10)
+    svg.rect(tx, ty, tw, 30, fill="#0d1420", stroke=CYAN, sw=1.5, rx=10)
     svg.rect(tx, ty + 20, tw, 10, fill="#0d1420")
     for i, dot in enumerate(("#ff5f57", "#febc2e", "#28c840")):
         svg.raw(f'<circle cx="{tx + 20 + i * 18}" cy="{ty + 15}" r="5.5"'
                 f' fill="{dot}" opacity="0.9"/>')
     svg.text(tx + tw / 2, ty + 20, "mini-jev  ::  system-one runtime",
              size=12.5, fill=DIM, anchor="middle")
-    _terminal_lines(svg, tx + 26, ty + 62)
-    svg.scanlines(tx, ty, tw, th, opacity=0.055)
+    _terminal_lines(svg, tx + 26, ty + 60, size=14, lh=21)
+    svg.scanlines(tx, ty, tw, th, opacity=0.05)
     svg.sweep(tx, ty, tw, th, color=CYAN, dur="7.5s", band=70)
+    caption(svg, 40, 424, "every number above is printed by the commands shown, "
+                          "on a laptop CPU")
+    return svg.save("terminal.svg")
 
-    # horizon and floor
-    svg.rect(0, HORIZON - 3, W, 6, fill=CYAN, opacity=0.30, rx=0)
-    svg.rect(0, HORIZON - 1, W, 2, fill=CYAN, opacity=0.75, rx=0)
-    _floor(svg)
-    svg.rect(0, HORIZON, W, 200, fill=BG, opacity=0.35)
 
-    svg.hud(14, 14, W - 28, H - 28, color=CYAN, size=26)
-    svg.scanlines(0, 0, W, H, opacity=0.035)
+# the silhouette at the window, in local coordinates with the head near origin
+FIGURE = [
+    '<path d="M-52 -14 q-26 74 -12 170 q8 60 26 96 l58 0 q14 -52 10 -118'
+    ' q-4 -74 -28 -134 z"/>',
+    '<path d="M-104 96 q104 -56 208 0 l26 300 l-260 0 z"/>',
+    '<rect x="-20" y="28" width="40" height="48" rx="14"/>',
+    '<path d="M76 152 q46 -36 38 -94 l26 -6 q16 76 -38 124 z"/>',
+    '<ellipse cx="122" cy="52" rx="17" ry="20"/>',
+    '<ellipse cx="0" cy="-24" rx="46" ry="54"/>',
+    '<path d="M-50 -30 q6 -58 52 -56 q44 2 50 54 q-14 -30 -50 -30 q-36 0 -52 32 z"/>',
+    '<path d="M-46 -30 q46 -66 92 0" fill="none" stroke-width="9"/>',
+    '<rect x="-62" y="-36" width="26" height="44" rx="10"/>',
+    '<rect x="36" y="-36" width="26" height="44" rx="10"/>',
+]
+
+
+def _figure(svg: SVG, dx, dy, scale, fill, stroke, sw, opacity) -> None:
+    svg.raw(f'<g transform="translate({dx},{dy}) scale({scale})" fill="{fill}"'
+            f' stroke="{stroke}" stroke-width="{sw}" opacity="{opacity}">')
+    for prim in FIGURE:
+        svg.raw(prim)
+    svg.raw("</g>")
+
+
+def _drop(svg: SVG, x, y, rx, ry, hot=False) -> None:
+    svg.raw(f'<ellipse cx="{x:.1f}" cy="{y:.1f}" rx="{rx:.1f}" ry="{ry:.1f}"'
+            f' fill="#dceeff" opacity="0.13"/>')
+    svg.raw(f'<ellipse cx="{x:.1f}" cy="{y:.1f}" rx="{rx * 0.7:.1f}"'
+            f' ry="{ry * 0.7:.1f}" fill="#0b1220" opacity="0.18"/>')
+    svg.raw(f'<circle cx="{x - rx * 0.30:.1f}" cy="{y - ry * 0.40:.1f}"'
+            f' r="{max(1.0, rx * 0.20):.1f}" fill="#ffffff" opacity="0.60"/>')
+    if hot:
+        svg.raw(f'<circle cx="{x + rx * 0.24:.1f}" cy="{y + ry * 0.22:.1f}"'
+                f' r="{max(1.2, rx * 0.26):.1f}" fill="{MAGENTA}"'
+                ' opacity="0.30"/>')
+
+
+def _skyline(svg: SVG, rng, y_base, height, wmin, wmax, rows, lit) -> None:
+    """One band of buildings. Each window row is a single dashed line."""
+
+    palette = ("#ffd9a0", "#9ae6ff", "#f9a8d4", "#c4b5fd")
+    x = -70.0
+    while x < SW + 70:
+        w = float(rng.uniform(wmin, wmax))
+        h = float(rng.uniform(height * 0.5, height))
+        top = y_base - h
+        svg.rect(x, top, w, h, fill="#080d19", stroke="#0f1b2e", sw=0.8, rx=1.5)
+        step = max(5.0, h / (rows + 1))
+        for r in range(rows):
+            wy = top + step * (r + 0.9)
+            if wy > y_base - 2:
+                continue
+            on = rng.random() < lit
+            col = palette[int(rng.integers(0, len(palette)))] if on else "#16243c"
+            svg.raw(f'<line x1="{x + 3:.1f}" y1="{wy:.1f}"'
+                    f' x2="{x + w - 3:.1f}" y2="{wy:.1f}" stroke="{col}"'
+                    f' stroke-width="1.6" stroke-dasharray="2.5 3.5"'
+                    f' opacity="{0.55 if on else 0.45:.2f}"/>')
+        x += w + float(rng.uniform(3, 10))
+
+
+def _traffic(svg: SVG, rng, y, half_band, color, n, length) -> None:
+    for _ in range(n):
+        y0 = y + float(rng.uniform(-half_band, half_band))
+        x0 = float(rng.uniform(-260, SW))
+        ln = float(rng.uniform(length * 0.45, length))
+        svg.raw(f'<line x1="{x0:.0f}" y1="{y0:.1f}" x2="{x0 + ln:.0f}"'
+                f' y2="{y0:.1f}" stroke="{color}"'
+                f' stroke-width="{rng.uniform(1.2, 3.0):.1f}"'
+                f' opacity="{rng.uniform(0.22, 0.72):.2f}"'
+                ' stroke-linecap="round"/>')
+        svg.raw(f'<line x1="{x0:.0f}" y1="{y0 + 7:.1f}" x2="{x0 + ln * 0.8:.0f}"'
+                f' y2="{y0 + 7:.1f}" stroke="{color}"'
+                f' stroke-width="{rng.uniform(0.7, 1.8):.1f}"'
+                f' opacity="{rng.uniform(0.07, 0.20):.2f}"'
+                ' stroke-linecap="round"/>')
+
+
+def fig_hero() -> pathlib.Path:
+    svg = SVG(SW, SH)
+    svg.framed = False  # the scene draws its own frame
+    rng = np.random.default_rng(20260928)
+    svg.defs(f'''
+      <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="#060912"/>
+        <stop offset="38%" stop-color="#0f1733"/>
+        <stop offset="66%" stop-color="#2a1546"/>
+        <stop offset="88%" stop-color="#3d1338"/>
+        <stop offset="100%" stop-color="#160d22"/>
+      </linearGradient>
+      <radialGradient id="haze" cx="52%" cy="56%" r="60%">
+        <stop offset="0%" stop-color="{MAGENTA}" stop-opacity="0.26"/>
+        <stop offset="42%" stop-color="{VIOLET}" stop-opacity="0.15"/>
+        <stop offset="100%" stop-color="#000000" stop-opacity="0"/>
+      </radialGradient>
+      <linearGradient id="fog" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="#2a1030" stop-opacity="0"/>
+        <stop offset="55%" stop-color="#331236" stop-opacity="0.30"/>
+        <stop offset="100%" stop-color="#0a0812" stop-opacity="0.96"/>
+      </linearGradient>
+      <linearGradient id="titlescrim" x1="0" y1="0" x2="1" y2="0">
+        <stop offset="0%" stop-color="#04060c" stop-opacity="0.86"/>
+        <stop offset="60%" stop-color="#04060c" stop-opacity="0.34"/>
+        <stop offset="100%" stop-color="#04060c" stop-opacity="0"/>
+      </linearGradient>
+      <radialGradient id="phone" cx="50%" cy="50%" r="50%">
+        <stop offset="0%" stop-color="#a5f3fc" stop-opacity="0.85"/>
+        <stop offset="45%" stop-color="{CYAN}" stop-opacity="0.30"/>
+        <stop offset="100%" stop-color="{CYAN}" stop-opacity="0"/>
+      </radialGradient>
+      <linearGradient id="sheen" x1="0" y1="0" x2="1" y2="1">
+        <stop offset="0%" stop-color="#d7ecff" stop-opacity="0.10"/>
+        <stop offset="34%" stop-color="#d7ecff" stop-opacity="0.015"/>
+        <stop offset="52%" stop-color="#ffffff" stop-opacity="0.075"/>
+        <stop offset="100%" stop-color="#ffffff" stop-opacity="0"/>
+      </linearGradient>
+      <radialGradient id="vig" cx="50%" cy="52%" r="74%">
+        <stop offset="48%" stop-color="#000000" stop-opacity="0"/>
+        <stop offset="100%" stop-color="#000000" stop-opacity="0.78"/>
+      </radialGradient>
+      <linearGradient id="scrim" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="#03060c" stop-opacity="0.88"/>
+        <stop offset="60%" stop-color="#03060c" stop-opacity="0.35"/>
+        <stop offset="100%" stop-color="#03060c" stop-opacity="0"/>
+      </linearGradient>
+    ''')
+
+    # sky, glow, deep skyline, nearer skyline
+    svg.rect(0, 0, SW, SH, fill="url(#sky)")
+    svg.rect(0, 0, SW, SH, fill="url(#haze)")
+    _skyline(svg, rng, y_base=330, height=96, wmin=16, wmax=42, rows=4, lit=0.55)
+    _skyline(svg, rng, y_base=430, height=150, wmin=30, wmax=78, rows=6, lit=0.45)
+    _skyline(svg, rng, y_base=580, height=240, wmin=52, wmax=132, rows=8, lit=0.38)
+    # distance fog hides the hard base of the skyline and adds depth
+    svg.rect(0, 420, SW, 310, fill="url(#fog)")
+
+    # rain falling towards the camera, behind the glass
+    streaks = []
+    for _ in range(190):
+        x = float(rng.uniform(-140, SW + 140))
+        y = float(rng.uniform(-SH, SH))
+        ln = float(rng.uniform(24, 92))
+        streaks.append((x, y, ln, float(rng.uniform(0.7, 1.7)),
+                        float(rng.uniform(0.06, 0.30))))
+    body = "".join(
+        f'<line x1="{x:.0f}" y1="{y:.0f}" x2="{x - ln * 0.26:.0f}"'
+        f' y2="{y + ln:.0f}" stroke="#d6ecff" stroke-width="{w:.1f}"'
+        f' opacity="{o:.2f}" stroke-linecap="round"/>'
+        for x, y, ln, w, o in streaks
+    )
+    svg.raw(f'<g>{body}<animateTransform attributeName="transform"'
+            f' type="translate" from="0 0" to="0 {SH}" dur="2.6s"'
+            ' repeatCount="indefinite"/></g>')
+
+    # the street, far below, with long-exposure traffic
+    svg.rect(0, 706, SW, 194, fill="#04070d")
+    _traffic(svg, rng, 736, 12, "#ffd9a0", 46, 420)
+    _traffic(svg, rng, 776, 16, "#ff5f7e", 58, 520)
+    _traffic(svg, rng, 828, 22, "#9ae6ff", 42, 300)
+    svg.rect(0, 706, SW, 194, fill="#04070d", opacity=0.42)
+
+    # the person: two rimlight passes, then the solid silhouette on top
+    fx, fy, fs = 196, 486, 0.94
+    _figure(svg, fx - 3, fy - 2, fs, "#05070c", CYAN, 2.6, 0.48)
+    _figure(svg, fx + 3, fy + 2, fs, "#05070c", MAGENTA, 2.0, 0.28)
+    _figure(svg, fx, fy, fs, "#04060b", "none", 0, 1.0)
+
+    # phone light, positioned from the figure transform so the two cannot drift
+    pcx, pcy = fx + 124 * fs, fy + 36 * fs
+    svg.raw(f'<circle cx="{pcx:.0f}" cy="{pcy:.0f}" r="138" fill="url(#phone)">'
+            '<animate attributeName="opacity" values="0.85;1;0.85" dur="4.5s"'
+            ' repeatCount="indefinite"/></circle>')
+    svg.rect(pcx - 14, pcy - 28, 28, 56, fill="#0b1a24", stroke=CYAN, sw=1.4,
+             rx=6)
+    svg.rect(pcx - 10, pcy - 23, 20, 42, fill="#7dd3fc", opacity=0.85, rx=3)
+
+    # glass in front of everything
+    _drop_layer = [(float(rng.uniform(0, SW)), float(rng.uniform(0, SH))) for _ in range(56)]
+    for dx, dy in _drop_layer:
+        rx = float(rng.uniform(5, 21))
+        _drop(svg, dx, dy, rx, rx * float(rng.uniform(1.05, 1.5)),
+              hot=rng.random() < 0.34)
+    for i, (dx, dy) in enumerate(_drop_layer[:4]):
+        svg.raw(
+            f'<g><ellipse cx="{dx:.0f}" cy="{dy:.0f}" rx="11" ry="17"'
+            ' fill="#dceeff" opacity="0.12"/>'
+            f'<animateTransform attributeName="transform" type="translate"'
+            f' from="0 0" to="0 {120 + i * 40}" dur="{10 + i * 2.5}s"'
+            ' repeatCount="indefinite"/></g>'
+        )
+    svg.rect(0, 0, SW, SH, fill="url(#sheen)")
+
+    # grade, title, caption
+    svg.rect(0, 0, SW, SH, fill="url(#vig)")
+    svg.rect(22, 22, 760, 168, fill="url(#titlescrim)")
+    # the room: a dark window opening around the view
+    svg.rect(0, 0, SW, 22, fill="#04060c")
+    svg.rect(0, SH - 24, SW, 24, fill="#04060c")
+    svg.rect(0, 0, 22, SH, fill="#04060c")
+    svg.rect(SW - 22, 0, 22, SH, fill="#04060c")
+    svg.rect(22, 22, SW - 44, 1.6, fill="#bfe6ff", opacity=0.18)
+    svg.rect(22, 22, 1.6, SH - 46, fill="#bfe6ff", opacity=0.10)
+    svg.glitch(96, 106, "mini-jev", size=64)
+    svg.text(98, 140, "a System One decision model small enough to read in one sitting",
+             size=16, fill=DIM)
+    for i, (tag, col) in enumerate((("// TYPED DECISIONS", CYAN),
+                                    ("// CALIBRATED PROBABILITIES", VIOLET),
+                                    ("// NO AUTOREGRESSION", MAGENTA))):
+        svg.text(SW - 96, 96 + i * 24, tag, size=13, fill=col, anchor="end",
+                 tracking="0.16em")
+    svg.text(96, SH - 46, "// 02:40, still raining, department ECE 0.014",
+             size=13, fill=FAINT)
+    svg.text(SW - 96, SH - 46, "9,265 parameters · numpy only",
+             size=13, fill=FAINT, anchor="end")
+    svg.hud(34, 34, SW - 68, SH - 68, color=CYAN, size=30, sw=2.0)
+    svg.scanlines(0, 0, SW, SH, opacity=0.03)
     return svg.save("hero.svg")
 
 
