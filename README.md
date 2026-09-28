@@ -62,7 +62,7 @@ product moves quickly, so re-check anything you plan to depend on.
 ## Quickstart
 
 ```bash
-git clone https://github.com/AceIke/mini-jev && cd mini-jev
+git clone https://github.com/AceIke/mini-Jev && cd mini-Jev
 pip install -e .               # numpy is the only runtime dependency
 
 python -m minijev train        # a few seconds, writes runs/triage/

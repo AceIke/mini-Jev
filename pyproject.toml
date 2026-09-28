@@ -26,9 +26,9 @@ dev = ["pytest>=7"]
 minijev = "minijev.cli:main"
 
 [project.urls]
-Homepage = "https://github.com/AceIke/mini-jev"
-Source = "https://github.com/AceIke/mini-jev"
-Issues = "https://github.com/AceIke/mini-jev/issues"
+Homepage = "https://github.com/AceIke/mini-Jev"
+Source = "https://github.com/AceIke/mini-Jev"
+Issues = "https://github.com/AceIke/mini-Jev/issues"
 
 [tool.setuptools.packages.find]
 where = ["src"]
